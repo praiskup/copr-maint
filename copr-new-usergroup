@@ -1,0 +1,48 @@
+#! /bin/env python
+
+import sys
+sys.path.append('/usr/share/copr/coprs_frontend/')
+
+import argparse
+from coprs import models, db
+
+import logging
+logging.basicConfig()
+log = logging.getLogger()
+
+whitelist_suffixes = [
+    '-sig',
+    '-project',
+    '-group',
+    '-team',
+]
+
+description = """
+Create copr group, seemingly to be user (without '@' prefix).
+"""
+parser = argparse.ArgumentParser(
+    prog='copr-new-usergroup',
+    description=description,
+)
+parser.add_argument(
+    "name",
+    help="name of the group")
+
+parser.add_argument(
+    "email",
+    help="email to the main contact, list, etc.")
+
+args = parser.parse_args()
+
+if not filter(lambda x : args.name.endswith(x), whitelist_suffixes):
+    log.error("name must end with " + str(whitelist_suffixes))
+    sys.exit(1)
+
+user = models.User()
+user.mail = args.email
+user.username = args.name
+user.api_login = "---"
+user.api_token = "---"
+
+db.session.add(user)
+db.session.commit()

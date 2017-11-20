@@ -1,0 +1,79 @@
+#! /bin/python
+
+import sys
+sys.path.append('/usr/share/copr/coprs_frontend/')
+
+import argparse
+import logging
+from contextlib import contextmanager
+from sqlalchemy.orm import sessionmaker, scoped_session
+
+from coprs import db
+from coprs import helpers
+from coprs import models
+
+logging.basicConfig()
+log = logging.getLogger()
+
+description = """
+Create new project for any user, and grant admin permissions.
+"""
+parser = argparse.ArgumentParser(
+    description=description,
+)
+
+parser.add_argument(
+    "name",
+    help="name of the project"
+)
+
+parser.add_argument(
+    "--owner",
+    required=True,
+    help="what username this project belongs to",
+)
+
+parser.add_argument(
+    "--admin",
+    action="append",
+    help="add admin user")
+
+args = parser.parse_args()
+
+@contextmanager
+def session_scope():
+    """Provide a transactional scope around a series of operations."""
+    Session = scoped_session(sessionmaker(bind=db.engine))
+    session = Session()
+    try:
+        yield session
+        session.commit()
+    except Exception as err:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+    
+with session_scope() as session:
+    owner = session.query(models.User).filter(models.User.username==args.owner).first()
+    if not owner:
+        raise Exception("owner user '{0}' not found".format(args.owner))
+
+    users = session.query(models.User).filter(models.User.username.in_(args.admin)).all()
+    if len(users) != len(args.admin):
+        raise Exception("some admin users not found: " + str(args.admin))
+
+    project = models.Copr()
+    project.name = args.name
+    project.user = owner
+
+    session.add(project)
+
+    for user in users:
+        permission = models.CoprPermission(
+            user=user,
+            copr=project,
+            copr_admin=helpers.PermissionEnum("approved"),
+            copr_builder=helpers.PermissionEnum("approved"),
+        )
+        session.add(permission)
