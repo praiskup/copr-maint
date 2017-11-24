@@ -10,11 +10,12 @@ import logging
 logging.basicConfig()
 log = logging.getLogger()
 
-whitelist_suffixes = [
-    '-sig',
-    '-project',
-    '-group',
-    '-team',
+whitelist_fixes = [
+    'sig',
+    'group',
+    'grp',
+    'project',
+    'team',
 ]
 
 description = """
@@ -34,8 +35,9 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-if not filter(lambda x : args.name.endswith(x), whitelist_suffixes):
-    log.error("name must end with " + str(whitelist_suffixes))
+if not filter(lambda x : args.name.endswith("-" + x), whitelist_fixes) and \
+   not filter(lambda x : args.name.startswith(x + "-"), whitelist_fixes):
+    log.error("name must start/end with " + str(whitelist_suffixes))
     sys.exit(1)
 
 user = models.User()
