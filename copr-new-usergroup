@@ -1,10 +1,11 @@
 #! /bin/env python
 
 import sys
+import datetime
 sys.path.append('/usr/share/copr/coprs_frontend/')
 
 import argparse
-from coprs import models, db
+from coprs import models, db, helpers
 
 import logging
 logging.basicConfig()
@@ -43,8 +44,9 @@ if not filter(lambda x : args.name.endswith("-" + x), whitelist_fixes) and \
 user = models.User()
 user.mail = args.email
 user.username = args.name
-user.api_login = "---"
-user.api_token = "---"
+user.api_login = "bot-" + args.name
+user.api_token = helpers.generate_api_token()
+user.api_token_expiration = datetime.date.today() + datetime.timedelta(days=365*20)
 
 db.session.add(user)
 db.session.commit()
