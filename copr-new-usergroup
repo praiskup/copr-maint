@@ -5,7 +5,7 @@ import datetime
 sys.path.append('/usr/share/copr/coprs_frontend/')
 
 import argparse
-from coprs import models, db, helpers
+from coprs import models, db, helpers, app
 
 import logging
 logging.basicConfig()
@@ -50,3 +50,19 @@ user.api_token_expiration = datetime.date.today() + datetime.timedelta(days=365*
 
 db.session.add(user)
 db.session.commit()
+
+token_template = """\
+[copr-cli]
+login = {api_login}
+username = {user_name}
+token = {api_token}
+copr_url = {copr_url}"""
+
+token = token_template.format(
+    api_login=user.api_login,
+    api_token=user.api_token,
+    user_name=user.username,
+    copr_url='https://' + app.config['PUBLIC_COPR_HOSTNAME'],
+)
+
+print(token)
