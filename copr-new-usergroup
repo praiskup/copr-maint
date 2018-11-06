@@ -17,6 +17,7 @@ whitelist_fixes = [
     'grp',
     'project',
     'team',
+    'ci',
 ]
 
 description = """
