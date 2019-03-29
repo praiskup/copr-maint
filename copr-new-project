@@ -7,6 +7,7 @@ import argparse
 import logging
 from contextlib import contextmanager
 from sqlalchemy.orm import sessionmaker, scoped_session
+from coprs.logic.coprs_logic import CoprsLogic
 
 from coprs import db
 from coprs import helpers
@@ -41,20 +42,17 @@ parser.add_argument(
 args = parser.parse_args()
 
 @contextmanager
-def session_scope():
+def db_session_scope():
     """Provide a transactional scope around a series of operations."""
-    Session = scoped_session(sessionmaker(bind=db.engine))
-    session = Session()
+    session = db.session
     try:
         yield session
         session.commit()
     except Exception as err:
         session.rollback()
         raise
-    finally:
-        session.close()
-    
-with session_scope() as session:
+
+with db_session_scope() as session:
     owner = session.query(models.User).filter(models.User.username==args.owner).first()
     if not owner:
         raise Exception("owner user '{0}' not found".format(args.owner))
@@ -63,11 +61,14 @@ with session_scope() as session:
     if len(users) != len(args.admin):
         raise Exception("some admin users not found: " + str(args.admin))
 
-    project = models.Copr()
-    project.name = args.name
-    project.user = owner
+    # TODO: select something from database (not every copr instance has this)
+    enable_chroots = ['fedora-rawhide-x86_64']
 
-    session.add(project)
+    project = CoprsLogic.add(
+        user=owner,
+        name=args.name,
+        selected_chroots=enable_chroots,
+    )
 
     for user in users:
         permission = models.CoprPermission(
