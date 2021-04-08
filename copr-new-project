@@ -9,6 +9,7 @@ from contextlib import contextmanager
 from sqlalchemy.orm import sessionmaker, scoped_session
 from coprs.logic.coprs_logic import CoprsLogic
 
+from coprs import app
 from coprs import db
 from coprs import helpers
 from coprs import models
@@ -52,29 +53,30 @@ def db_session_scope():
         session.rollback()
         raise
 
-with db_session_scope() as session:
-    owner = session.query(models.User).filter(models.User.username==args.owner).first()
-    if not owner:
-        raise Exception("owner user '{0}' not found".format(args.owner))
+with app.app_context():
+    with db_session_scope() as session:
+        owner = session.query(models.User).filter(models.User.username==args.owner).first()
+        if not owner:
+            raise Exception("owner user '{0}' not found".format(args.owner))
 
-    users = session.query(models.User).filter(models.User.username.in_(args.admin)).all()
-    if len(users) != len(args.admin):
-        raise Exception("some admin users not found: " + str(args.admin))
+        users = session.query(models.User).filter(models.User.username.in_(args.admin)).all()
+        if len(users) != len(args.admin):
+            raise Exception("some admin users not found: " + str(args.admin))
 
-    # TODO: select something from database (not every copr instance has this)
-    enable_chroots = ['fedora-rawhide-x86_64']
+        # TODO: select something from database (not every copr instance has this)
+        enable_chroots = ['fedora-rawhide-x86_64']
 
-    project = CoprsLogic.add(
-        user=owner,
-        name=args.name,
-        selected_chroots=enable_chroots,
-    )
-
-    for user in users:
-        permission = models.CoprPermission(
-            user=user,
-            copr=project,
-            copr_admin=helpers.PermissionEnum("approved"),
-            copr_builder=helpers.PermissionEnum("approved"),
+        project = CoprsLogic.add(
+            user=owner,
+            name=args.name,
+            selected_chroots=enable_chroots,
         )
-        session.add(permission)
+
+        for user in users:
+            permission = models.CoprPermission(
+                user=user,
+                copr=project,
+                copr_admin=helpers.PermissionEnum("approved"),
+                copr_builder=helpers.PermissionEnum("approved"),
+            )
+            session.add(permission)
