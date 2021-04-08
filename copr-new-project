@@ -8,6 +8,7 @@ import logging
 from contextlib import contextmanager
 from sqlalchemy.orm import sessionmaker, scoped_session
 from coprs.logic.coprs_logic import CoprsLogic
+import flask
 
 from coprs import app
 from coprs import db
@@ -56,8 +57,13 @@ def db_session_scope():
 with app.app_context():
     with db_session_scope() as session:
         owner = session.query(models.User).filter(models.User.username==args.owner).first()
+        flask.g.user = owner
+
         if not owner:
             raise Exception("owner user '{0}' not found".format(args.owner))
+
+        if args.admin is None:
+            args.admin = []
 
         users = session.query(models.User).filter(models.User.username.in_(args.admin)).all()
         if len(users) != len(args.admin):
